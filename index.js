@@ -37,9 +37,15 @@ app.get("/card/:name", async (req, res) => {
     }
 });
 
-app.get("/moxfield/recommend/:id", async (req, res) => {
+app.get("/moxfield/recommend", async (req, res) => {
     try {
-        const deckId = req.params.id;
+        const { url } = req.query;
+        const deckIdMatch = url.match(/decks\/([a-zA-Z0-9]+)/);
+        if (!deckIdMatch) {
+            return res.status(400).json({ error: "URL de mazo no válida." });
+        }
+        const deckId = deckIdMatch[1];
+
         const response = await axios.get(`https://api.moxfield.com/v2/decks/all/${deckId}`);
         const deck = response.data;
 
@@ -95,6 +101,7 @@ app.get("/moxfield/recommend/:id", async (req, res) => {
     }
 });
 
+// Endpoint para buscar cartas en Scryfall
 app.get("/scryfall/card", async (req, res) => {
     const { name } = req.query;
 
@@ -109,6 +116,7 @@ app.get("/scryfall/card", async (req, res) => {
 
         const cardData = response.data;
 
+        // Devuelve solo datos clave (personalizable)
         res.json({
             name: cardData.name,
             mana_cost: cardData.mana_cost,
@@ -124,6 +132,22 @@ app.get("/scryfall/card", async (req, res) => {
     } catch (error) {
         console.error("Error al consultar Scryfall:", error.message);
         res.status(404).json({ error: "No se encontró la carta en Scryfall." });
+    }
+});
+
+// Proxy endpoint para Moxfield
+app.get("/proxy/moxfield/deck", async (req, res) => {
+    try {
+        const { deckId } = req.query;
+        if (!deckId) {
+            return res.status(400).json({ error: "Debes proporcionar un ID de mazo." });
+        }
+
+        const response = await axios.get(`https://api.moxfield.com/v2/decks/all/${deckId}`);
+        res.json(response.data);
+    } catch (error) {
+        console.error("Error al consultar Moxfield:", error.message);
+        res.status(500).json({ error: "No se pudo obtener el mazo de Moxfield." });
     }
 });
 
