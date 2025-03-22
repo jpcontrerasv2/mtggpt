@@ -41,7 +41,7 @@ app.get("/moxfield/:id", async (req, res) => {
         const response = await axios.get(`https://api.moxfield.com/v2/decks/all/${deckId}`);
 
         const deck = response.data;
-        const commander = deck.commanders[0]?.card.name || "Sin comandante";
+        const commander = Object.values(deck.commanders)[0]?.card?.name || "Sin comandante";
         const cards = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`);
 
         return res.json({
@@ -55,6 +55,7 @@ app.get("/moxfield/:id", async (req, res) => {
         return res.status(404).json({ error: "No se pudo obtener el mazo desde Moxfield." });
     }
 });
+
 
 
 
