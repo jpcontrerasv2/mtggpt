@@ -166,7 +166,6 @@ const authHeaders = () => ({
 app.listen(PORT, () => {
     console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
 });
-
 app.get("/card/:name", async (req, res) => {
     const { name } = req.params;
 
