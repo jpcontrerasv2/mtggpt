@@ -167,26 +167,22 @@ app.listen(PORT, () => {
     console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
 });
 app.get("/card/:name", async (req, res) => {
-    const { name } = req.params;
+    const cardName = req.params.name;
 
     try {
-        const response = await axios.get(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`);
+        const response = await axios.get(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`);
         const data = response.data;
 
-        const card = {
+        res.json({
             name: data.name,
-            mana_cost: data.mana_cost,
             type_line: data.type_line,
-            oracle_text: data.oracle_text,
-            image: data.image_uris?.normal,
+            oracle_text: data.oracle_text || data.card_faces?.[0]?.oracle_text || "Sin texto disponible",
+            image: data.image_uris?.normal || data.card_faces?.[0]?.image_uris?.normal || null,
             prices: data.prices,
-            legalities: data.legalities,
             scryfall_uri: data.scryfall_uri
-        };
-
-        res.json(card);
+        });
     } catch (error) {
-        console.error("Error fetching card from Scryfall:", error.message);
-        res.status(404).json({ error: "Carta no encontrada en Scryfall." });
+        console.error("Error buscando carta en Scryfall:", error.message);
+        res.status(404).json({ error: "No se encontró la carta en Scryfall." });
     }
 });
