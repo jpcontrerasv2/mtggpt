@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import axios from "axios";
 import dotenv from "dotenv";
-import './i18n/config';
 
 
 dotenv.config();
