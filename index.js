@@ -42,8 +42,11 @@ app.get("/moxfield/:id", async (req, res) => {
 
         const deck = response.data;
 
-        const commanderObj = deck.commanders && Object.values(deck.commanders)[0];
-        const commander = commanderObj?.card?.name || "Sin comandante";
+        // Esta línea es crítica y soluciona errores cuando commanders es null o vacío
+        const commander = deck.commanders && deck.commanders.length > 0
+            ? deck.commanders[0]?.card?.name
+            : "Sin comandante";
+
         const cards = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`);
 
         return res.json({
@@ -53,12 +56,10 @@ app.get("/moxfield/:id", async (req, res) => {
             publicUrl: `https://www.moxfield.com/decks/${deckId}`
         });
     } catch (error) {
-        console.error("Error completo:", error.response?.data || error.message);
-        return res.status(404).json({ error: "No se pudo obtener el mazo desde Moxfield." });
+        console.error("Error al obtener datos desde Moxfield:", error.response?.data || error.message);
+        return res.status(500).json({ error: "No se pudo obtener el mazo desde Moxfield." });
     }
 });
-
-
 
 app.post("/ask", async (req, res) => {
     try {
