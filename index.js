@@ -44,16 +44,10 @@ app.get("/moxfield/recommend/:id", async (req, res) => {
         const deck = response.data;
 
         const cardsList = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`).join('\n');
-        const commanderList = deck.commanders.map(c => c.card.name).join(', ') || "No commander";
-        const deckDescription = `
-            Mazo: ${deck.name}
-            Formato: ${deck.format || "Desconocido"}
-            Comandante(s): ${commanderList}
-            Cartas del mazo:
-            ${cardsList}
-        `;
+        const commanderList = deck.commanders?.map(c => c.card.name).join(', ') || "No commander";
+        const deckDescription = `Mazo: ${deck.name}\nFormato: ${deck.format || "Desconocido"}\nComandante(s): ${commanderList}\nCartas del mazo:\n${cardsList}`;
 
-        const prompt = `Analiza el siguiente mazo de Magic: The Gathering y proporciona sugerencias y recomendaciones para mejorar su estrategia, sin importar el formato: \n\n${deckDescription}`;
+        const prompt = `Analiza el siguiente mazo de Magic: The Gathering y proporciona sugerencias y recomendaciones para mejorar su estrategia, sin importar el formato:\n\n${deckDescription}`;
 
         const threadResponse = await axios.post("https://api.openai.com/v1/threads", {}, { headers: authHeaders() });
         const threadId = threadResponse.data.id;
@@ -71,7 +65,7 @@ app.get("/moxfield/recommend/:id", async (req, res) => {
         let status = "in_progress";
         let assistantResponse = "El asistente no generó una respuesta.";
 
-        while (status === "in_progress" || status === "queued") {
+        while (["in_progress", "queued"].includes(status)) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             const runStatus = await axios.get(
                 `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
@@ -101,7 +95,6 @@ app.get("/moxfield/recommend/:id", async (req, res) => {
     }
 });
 
-// Endpoint para buscar cartas en Scryfall
 app.get("/scryfall/card", async (req, res) => {
     const { name } = req.query;
 
@@ -116,7 +109,6 @@ app.get("/scryfall/card", async (req, res) => {
 
         const cardData = response.data;
 
-        // Devuelve solo datos clave (personalizable)
         res.json({
             name: cardData.name,
             mana_cost: cardData.mana_cost,
