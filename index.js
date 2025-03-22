@@ -36,24 +36,30 @@ app.get("/card/:name", async (req, res) => {
 });
 
 app.get("/moxfield/:id", async (req, res) => {
+    const { id } = req.params;
+    console.log("ID recibido:", id);
     try {
-        const deckId = req.params.id;
-        const response = await axios.get(`https://api.moxfield.com/v2/decks/${deckId}`);
+        const response = await fetch(`https://api.moxfield.com/v2/decks/all/${id}`);
+        if (!response.ok) throw new Error("Mazo no encontrado");
 
-        const deck = response.data;
-        const commander = Object.values(deck.commanders)[0]?.card.name || "";
-        const cards = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`);
+        const deckInfo = await response.json();
 
-        return res.json({
-            name: deck.name,
+        const commander = deckInfo.commanders?.[0]?.card?.name || "Sin comandante";
+        const cards = Object.values(deckInfo.mainboard).map(card => `${card.quantity} ${card.card.name}`);
+
+        res.json({
+            name: deckInfo.name,
             commander,
-            cards,
-            publicUrl: `https://www.moxfield.com/decks/${deckId}`
+            publicUrl: deckInfo.publicUrl,
+            cards
         });
+
     } catch (error) {
-        return res.status(404).json({ error: "No se pudo obtener el mazo desde Moxfield." });
+        console.error("Error al obtener el mazo:", error);
+        res.status(500).json({ error: "No se pudo obtener el mazo desde Moxfield." });
     }
 });
+
 
 app.post("/ask", async (req, res) => {
     try {
