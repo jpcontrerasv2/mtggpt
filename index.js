@@ -35,31 +35,68 @@ app.get("/card/:name", async (req, res) => {
     }
 });
 
-app.get("/moxfield/:id", async (req, res) => {
+app.get("/moxfield/recommend/:id", async (req, res) => {
     try {
         const deckId = req.params.id;
         const response = await axios.get(`https://api.moxfield.com/v2/decks/all/${deckId}`);
-
         const deck = response.data;
 
-        // Esta línea es crítica y soluciona errores cuando commanders es null o vacío
-        const commander = deck.commanders && deck.commanders.length > 0
-            ? deck.commanders[0]?.card?.name
-            : "Sin comandante";
+        const cardsList = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`).join('\n');
+        const commanderList = deck.commanders.map(c => c.card.name).join(', ') || "No commander";
+        const deckDescription = `
+          Mazo: ${deck.name}
+          Formato: ${deck.format || "Desconocido"}
+          Comandante(s): ${commanderList}
+          Cartas del mazo:
+          ${cardsList}
+        `;
 
-        const cards = Object.values(deck.mainboard).map(c => `${c.quantity} ${c.card.name}`);
+        const prompt = `Analiza el siguiente mazo de Magic: The Gathering y proporciona sugerencias y recomendaciones para mejorar su estrategia, sin importar el formato:\n\n${deckDescription}`;
 
-        return res.json({
-            name: deck.name,
-            commander,
-            cards,
-            publicUrl: `https://www.moxfield.com/decks/${deckId}`
+        const threadResponse = await axios.post("https://api.openai.com/v1/threads", {}, { headers: authHeaders() });
+        const threadId = threadResponse.data.id;
+
+        await axios.post(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+            role: "user",
+            content: prompt
+        }, { headers: authHeaders() });
+
+        const runResponse = await axios.post(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+            assistant_id: "asst_fFMc7RSnZ9GboO9x0a2iEsRz"
+        }, { headers: authHeaders() });
+
+        const runId = runResponse.data.id;
+        let status = "in_progress";
+        let assistantResponse = "El asistente no generó una respuesta.";
+
+        while (status === "in_progress" || status === "queued") {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const runStatus = await axios.get(
+                `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
+                { headers: authHeaders() }
+            );
+            status = runStatus.data.status;
+        }
+
+        if (status === "completed") {
+            const messagesResponse = await axios.get(`https://api.openai.com/v1/threads/${threadId}/messages`, { headers: authHeaders() });
+            const assistantMessages = messagesResponse.data.data.filter(msg => msg.role === "assistant");
+            if (assistantMessages.length > 0 && assistantMessages[0].content?.[0]?.text) {
+                assistantResponse = assistantMessages[0].content[0].text.value;
+            }
+        }
+
+        res.json({
+            deckName: deck.name,
+            recommendations: assistantResponse
         });
+
     } catch (error) {
-        console.error("Error al obtener datos desde Moxfield:", error.response?.data || error.message);
-        return res.status(500).json({ error: "No se pudo obtener el mazo desde Moxfield." });
+        console.error(error);
+        res.status(500).json({ error: "No se pudo obtener recomendaciones para el mazo." });
     }
 });
+
 
 app.post("/ask", async (req, res) => {
     try {
